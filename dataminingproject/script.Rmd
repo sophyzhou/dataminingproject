@@ -1,0 +1,214 @@
+
+install.packages('ggplot2', dep = TRUE)
+install.packages(c("Rcpp", "readr"))
+
+library(readr)
+library(RColorBrewer)
+library(ggplot2)
+library(maps)
+
+Pop <- rbind(read_csv("DM/2013-american-community-survey/pums/ss13pusa.csv")[,c('WAGP','COW','SEX','MAR', 'NATIVITY', 'RAC1P', 'AGEP','ST', 'SCHL')], 
+read_csv("DM/2013-american-community-survey/pums/ss13pusb.csv")[,c('WAGP','COW','SEX','MAR', 'NATIVITY', 'RAC1P', 'AGEP','ST', 'SCHL')])
+PopSel <- subset(Pop, Pop$WAGP >= 1000 && Pop$AGEP < 76)
+PopSel
+rm(Pop)
+PopSel$SEX <- as.factor(as.character(PopSel$SEX))
+PopSel$MAR <- as.factor(as.character(PopSel$MAR))
+PopSel$NATIVITY <- as.factor(as.character(PopSel$NATIVITY))
+PopSel$RAC1P <- as.factor(as.character(PopSel$RAC1P))
+PopSel$ST <- as.factor(as.character(PopSel$ST))
+
+PopSel
+
+dMale <- density(log10(PopSel[PopSel$SEX==1,]$WAGP))
+dFemale <- density(log10(PopSel[PopSel$SEX==2,]$WAGP))
+plot(dMale, main='Wage by Gender', col.main="darkred", xlab="Wage (log10 scale)")
+polygon(dMale, col= "#00BFFF55", border="#00BFFF", lwd=2)
+polygon(dFemale, col= "#00CD0055", border="#00CD00",lwd=2)
+abline(v=seq(3,5.5, by=0.5), col='grey', lty=2)
+legend("topright", legend=c("Male", "Female"), fill=c("#00BFFF", "#00CD00"), cex=1.1, bg="white")
+
+
+
+WageMarMedianMen <- tapply(PopSel[PopSel$SEX==1,]$WAGP, factor(PopSel[PopSel$SEX==1,]$MAR), median)
+WageMarMedianWomen <- tapply(PopSel[PopSel$SEX==2,]$WAGP, factor(PopSel[PopSel$SEX==2,]$MAR), median)
+
+stripchart(log10(PopSel$WAGP) ~PopSel$MAR, col=colorRampPalette(c('cadetblue1','gold'))(6),
+main = 'Wage by Marital Status', col.main='darkred', pch=19, cex=0.1, method='jitter', 
+jitter=0.4, vertical=T, group.names=c('Married','Widowed', 'Divorced','Separated', 'NotMarried'), 
+las=2, ylab= 'Wage - log10 scale-',cex.axis=0.8)
+
+points(log10(WageMarMedianMen)  ~ as.numeric(as.character(names(WageMarMedianMen))), bg='darkslateblue', 
+pch=21, cex=1.2, ylab = 'Wages - log10 scale-', cex.lab=0.8)
+points(log10(WageMarMedianWomen)  ~ as.numeric(as.character(names(WageMarMedianWomen))), 
+bg='forestgreen', pch=21, cex=1.2)
+lines(log10(WageMarMedianMen)  ~ as.numeric(as.character(names(WageMarMedianMen))), col='darkslateblue', lwd=1.4)
+lines(log10(WageMarMedianWomen)  ~ as.numeric(as.character(names(WageMarMedianWomen))),col='forestgreen', lwd=1.4)
+text(log10(WageMarMedianWomen)-0.1  ~ as.numeric(as.character(names(WageMarMedianWomen))), label=WageMarMedianWomen)
+text(log10(WageMarMedianMen)+0.1  ~ as.numeric(as.character(names(WageMarMedianMen))), label=WageMarMedianMen)
+
+text(rep(log10(1200), 5)  ~ as.numeric(as.character(names(WageMarMedianMen))), 
+label= paste(round(WageMarMedianWomen/WageMarMedianMen*100, 1), '%', sep=''))
+
+abline(h=seq(3,6,by=0.5), col='grey', lty=2)
+legend("topright", legend=c("Median Male", "Median Female"), cex=0.85, 
+fill=c("darkslateblue", "forestgreen"), bg="white")
+
+
+
+PopSel$ED <- ifelse(PopSel$SCHL < 7, 'No4Grade', ifelse(PopSel$SCHL >=7 & PopSel$SCHL<16, 'Completed4Grade',
+ifelse (PopSel$SCHL >=16 & PopSel$SCHL<20,'HighSchoolDiploma', ifelse(PopSel$SCHL == 20, 'AssociateDegree', 
+ifelse(PopSel$SCHL == 21, 'BachelorDegree', ifelse(PopSel$SCHL == 22, 'MasterDegree', ifelse(PopSel$SCHL == 23, 'ProfessionalDegree', 
+ifelse(PopSel$SCHL == 24, 'Doctorate', PopSel$SCHL))))))))
+PopSel$ED <- factor(PopSel$ED, c('No4Grade', 'Completed4Grade', 'HighSchoolDiploma', 'AssociateDegree', 
+'BachelorDegree', 'MasterDegree', 'ProfessionalDegree', 'Doctorate'))
+
+WageEdMedianMen <- tapply(PopSel[PopSel$SEX==1,]$WAGP, PopSel[PopSel$SEX==1,]$ED, median)
+WageEdMedianWomen <- tapply(PopSel[PopSel$SEX==2,]$WAGP, PopSel[PopSel$SEX==2,]$ED, median)
+
+stripchart(log10(PopSel$WAGP) ~PopSel$ED, col=colorRampPalette(c('cadetblue1','gold'))(6),main = 'Wage by Educational Attainment', 
+col.main='darkred', pch=19, cex=0.1, method='jitter', jitter=0.4, vertical=T,  las=2, 
+ylab='Wage -log10 scale-', cex.axis=0.60)
+
+points(log10(WageEdMedianMen)  ~ seq(1,8), bg='darkslateblue', pch=21, cex=1.2)
+points(log10(WageEdMedianWomen)  ~ seq(1,8), bg='forestgreen', pch=21, cex=1.2)
+lines(log10(WageEdMedianMen)  ~ seq(1,8), col='darkslateblue', lwd=1.4)
+lines(log10(WageEdMedianWomen)  ~ seq(1,8),col='forestgreen', lwd=1.4)
+text(log10(WageEdMedianWomen)-0.1  ~ seq(1,8), label=WageEdMedianWomen)
+text(log10(WageEdMedianMen)+0.1  ~ seq(1,8), label=WageEdMedianMen)
+
+text(rep(log10(1200), 8)  ~ seq(1,8), 
+label= paste(round(WageEdMedianWomen/WageEdMedianMen*100, 1), '%', sep=''), cex=0.9)
+
+abline(h=seq(3,6,by=0.5), col='grey', lty=2)
+legend("topleft", legend=c("Median Male", "Median Female"), 
+fill=c("darkslateblue", "forestgreen"), cex=0.9, bg="white")
+{r, echo=F}
+
+PopSub <- subset(PopSel, PopSel$COW >=1 & PopSel$COW < 6)
+PopSub$CW <- ifelse(PopSub$COW==1, 'PrivateProfit', ifelse(PopSub$COW == 2, 'PrivateNoProfit',
+ifelse (PopSub$COW == 3,'LocalGov', ifelse(PopSub$COW == 4, 'StateGov', 'FederalGov'))))
+
+PopSub$CW <- factor(PopSub$CW, c('PrivateProfit', 'PrivateNoProfit', 'LocalGov', 'StateGov', 'FederalGov'))
+
+WageCowMedianMen <- tapply(PopSub[PopSub$SEX==1,]$WAGP, PopSub[PopSub$SEX==1,]$CW, median)
+WageCowMedianWomen <- tapply(PopSub[PopSub$SEX==2,]$WAGP, factor(PopSub[PopSub$SEX==2,]$CW), median)
+
+
+stripchart(log10(PopSub$WAGP) ~PopSub$CW, col=colorRampPalette(c('cadetblue1','gold'))(5),
+main = 'Wage by Class of Worker', col.main='darkred', pch=19, cex=0.1, method='jitter', 
+jitter=0.4, vertical=T, las=2, mar=c(20,4,4,2),
+cex.axis=0.70, ylab='Wage - log10 scale-')
+
+points(log10(WageCowMedianMen)  ~ seq(1,5), bg='darkslateblue', pch=21, cex=1.2)
+points(log10(WageCowMedianWomen)  ~ seq(1,5), bg='forestgreen', pch=21, cex=1.2)
+lines(log10(WageCowMedianMen)  ~ seq(1,5), col='darkslateblue', lwd=1.4)
+lines(log10(WageCowMedianWomen)  ~ seq(1,5),col='forestgreen', lwd=1.4)
+text(log10(WageCowMedianWomen)-0.1  ~ seq(1,5), label=WageCowMedianWomen)
+text(log10(WageCowMedianMen)+0.1  ~ seq(1,5), label=WageCowMedianMen)
+abline(h=seq(3,6,by=0.5), col='grey', lty=2)
+
+text(rep(log10(1200), 5)  ~ seq(1,5), 
+label= paste(round(WageCowMedianWomen/WageCowMedianMen*100, 1), '%', sep=''), cex=0.9)
+
+legend("topright", legend=c("Median Male", "Median Female"), cex=0.85, 
+fill=c("darkslateblue", "forestgreen"), bg="white")
+
+
+
+WageStMedianMen <- tapply(PopSel[PopSel$SEX==1,]$WAGP, PopSel[PopSel$SEX==1,]$ST, median)
+WageStMedianWomen <- tapply(PopSel[PopSel$SEX==2,]$WAGP, PopSel[PopSel$SEX==2,]$ST, median)
+WageSt <- as.data.frame(cbind(WageStMedianMen, WageStMedianWomen))
+WageSt$WPer <- WageSt$WageStMedianWomen/WageSt$WageStMedianMen * 100
+StateNumber <- c(1,2,4,5,6,8,9,10,11,12,13,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,44,45,46,47,48,49,50,51,53,54,55,56,72)
+region <- c('alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware','district of columbia','florida','georgia','hawaii','idaho','illinois','indiana','iowa','kansas','kentucky','louisiana','maine','maryland','massachusetts','michigan','minnesota','mississippi','missouri','montana','nebraska','nevada','new hampshire','new jersey','new mexico','new york','north carolina','north dakota','ohio','oklahoma','oregon','pennsylvania','rhode island','south carolina','south dakota','tennessee','texas','utah','vermont','virginia','washington','west virginia','wisconsin','wyoming','puerto rico')
+States <- data.frame(as.factor(as.character(StateNumber)), as.factor(as.character(region)))
+names(States) <- c('StateNumber', 'region')
+StateWage <- merge(States, WageSt, by.x='StateNumber', by.y='row.names')
+USMap = map_data('state')
+WageMap <- merge(USMap, StateWage, by = 'region')
+
+
+ggplot(WageMap, aes(long, lat, group=group)) +
+  geom_polygon(aes(fill = WPer), colour="black") +
+  scale_fill_continuous(low="darkblue",high="aliceblue",limits=c(45, 90)) +
+  theme_light() +
+  theme(strip.background = element_blank(),
+       strip.text.x     = element_blank(),
+       axis.text.x      = element_blank(),
+        axis.text.y      = element_blank(),
+        axis.ticks       = element_blank(),
+        axis.line        = element_blank(),
+        panel.border     = element_blank(),
+        panel.grid       = element_blank(),
+        legend.position  = "right") +
+  xlab("") + ylab("") +
+  labs(title = "Median Women Wage as Percentage of Median Men Wage",
+       fill = 'Percent of men median')
+
+
+
+WageRacMedianMen <- tapply(PopSel[PopSel$SEX==1,]$WAGP, factor(PopSel[PopSel$SEX==1,]$RAC1P), median)
+WageRacMedianWomen <- tapply(PopSel[PopSel$SEX==2,]$WAGP, factor(PopSel[PopSel$SEX==2,]$RAC1P), median)
+
+stripchart(log10(PopSel$WAGP) ~PopSel$RAC1P, col=colorRampPalette(c('cadetblue1','gold'))(10),
+main = 'Wage by Ethnicity', col.main='darkred', pch=19, cex=0.1, method='jitter', 
+jitter=0.4, vertical=T, group.names=c('White', 'Black/AfricanAmerican','AmericanIndian', 'AlaskaNative', 
+'AmericanIndian/AlaskaNative', 'Asian', 'NativeHawaiian/Pacific', 'Other', 'Two/More'), las=2, mar=c(20,4,4,2),
+cex.axis=0.70, ylab='Wage - log10 scale-')
+
+points(log10(WageRacMedianMen)  ~ as.numeric(as.character(names(WageRacMedianMen))), bg='darkslateblue', 
+pch=21, cex=1.2)
+points(log10(WageRacMedianWomen)  ~ as.numeric(as.character(names(WageRacMedianWomen))), 
+bg='forestgreen', pch=21, cex=1.2)
+lines(log10(WageRacMedianMen)  ~ as.numeric(as.character(names(WageRacMedianMen))), col='darkslateblue', lwd=1.4)
+lines(log10(WageRacMedianWomen)  ~ as.numeric(as.character(names(WageRacMedianWomen))),col='forestgreen', lwd=1.4)
+text(log10(WageRacMedianWomen)-0.1  ~ as.numeric(as.character(names(WageRacMedianWomen))), label=WageRacMedianWomen)
+text(log10(WageRacMedianMen)+0.1  ~ as.numeric(as.character(names(WageRacMedianMen))), label=WageRacMedianMen)
+abline(h=seq(3,6,by=0.5), col='grey', lty=2)
+
+text(rep(log10(2000), 9)  ~ seq(1,9), 
+label= paste(round(WageRacMedianWomen/WageRacMedianMen*100, 1), '%', sep=''), cex=0.9)
+
+legend("topright", legend=c("Median Male", "Median Female"), cex=0.85, 
+fill=c("darkslateblue", "forestgreen"), bg="white")
+
+dMaleN <- density(log10(PopSel[PopSel$SEX==1 & PopSel$NATIVITY==1,]$WAGP))
+dFemaleN <- density(log10(PopSel[PopSel$SEX==2 & PopSel$NATIVITY==1,]$WAGP))
+dMaleUN <- density(log10(PopSel[PopSel$SEX==1 & PopSel$NATIVITY==2,]$WAGP))
+dFemaleUN <- density(log10(PopSel[PopSel$SEX==2 & PopSel$NATIVITY==2,]$WAGP))
+
+plot(dMaleN, main='Wage by Gender and Nativity', col.main="darkred", xlab="Wage (log10 scale)")
+polygon(dMaleN, col= "#00BFFF55", border="#00BFFF", lwd=2.5)
+polygon(dMaleUN, col= "#97FFFF55", border="#97FFFF", lwd=2.5)
+polygon(dFemaleN, col= "#00CD0055", border="#00CD00",lwd=2.5)
+polygon(dFemaleUN, col= "#CAFF7055", border="#CAFF70",lwd=2.5)
+legend("topright", legend=c("Native Men", "Native Women", "NonNative Men", "NotNative Women"), cex = 0.8, 
+fill=c("#00BFFF", "#00CD00", "#97FFFF","#CAFF70"), bg="white")
+abline(v=seq(1,6), col='grey', lty=2)
+
+WageMedianMen <- tapply(PopSel[PopSel$SEX==1,]$WAGP, factor(PopSel[PopSel$SEX==1,]$AGEP), median)
+WageMedianWomen <- tapply(PopSel[PopSel$SEX==2,]$WAGP, factor(PopSel[PopSel$SEX==2,]$AGEP), median)
+
+boxplot(log10(PopSel[PopSel$SEX==1,]$WAGP) ~ PopSel[PopSel$SEX==1,]$AGEP, col="#00BFFF40", main = 'Wage by Age in Men and Women', 
+col.main='darkred', xlab = 'Age', ylab= 'Wage (log10 scale)', outline=FALSE, cex.axis=0.7, las=2, varwidth=T, border='darkslateblue')
+boxplot(log10(PopSel[PopSel$SEX==2,]$WAGP) ~ PopSel[PopSel$SEX==2,]$AGEP, col="#00CD0040",cex.axis=10^-6, add=T, xlab = NULL, ylab= NULL, outline=FALSE, 
+varwidth=T, border='forestgreen')
+
+points(log10(WageMedianMen)  ~ seq(1,60), bg='darkslateblue', pch=21, cex=0.9)
+points(log10(WageMedianWomen)  ~ seq(1,60), bg='forestgreen', pch=21, cex=0.9)
+lines(log10(WageMedianMen)  ~ seq(1,60), col='darkslateblue', lwd=1.2)
+lines(log10(WageMedianWomen)  ~ seq(1,60),col='forestgreen', lwd=1.2)
+abline(h=seq(3,6,by=0.5), col='grey', lty=2)
+legend("topleft", legend=c("Median Male", "Median Female"), cex=0.8,
+fill=c("darkslateblue", "forestgreen"), bg="white")
+
+
+
+
+
+
+
+
+
+
